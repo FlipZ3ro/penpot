@@ -633,7 +633,8 @@
   re-authentication transparently if the user already has an active SSO session."
   {::rpc/auth true
    ::doc/added "2.19"
-   ::sm/params schema:auth-sso}
+   ::sm/params schema:auth-sso
+   ::nitrate/org-sso false}
   [cfg {:keys [team-id url] :as params}]
   (let [request                   (rph/get-request params)
         {:keys [authorized sso]}  (nitrate/sso-session-authorized? cfg team-id request)]

@@ -20,7 +20,6 @@
    [app.http.session :as session]
    [app.rpc :as-alias rpc]
    [app.setup :as-alias setup]
-   [app.util.cache :as cache]
    [clojure.core :as c]
    [integrant.core :as ig]))
 
@@ -510,12 +509,12 @@
 ;; UTILS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defonce ^:private sso-auth-cache
-  (cache/create :expire "1h" :max-size 1024))
-
-(defn- compute-sso-authorization
-  [cfg team-id session]
-  (let [sso (call cfg :get-org-sso-by-team {:team-id team-id})]
+(defn sso-session-authorized?
+  "Fetches the org-SSO config for the given team and checks whether
+  the HTTP request has a valid session entry for it. Returns a map
+  with :authorized and :sso keys."
+  [cfg team-id request]
+  (let [session (session/get-session request) sso (call cfg :get-org-sso-by-team {:team-id team-id})]
     (if-not (:active sso)
       {:authorized true :sso sso}
       (if (or (:issuer sso) (:base-url sso))
@@ -528,23 +527,6 @@
                                    (ct/is-after? exp now))]
           {:authorized authorized :sso sso})
         {:authorized false :sso sso}))))
-
-(defn sso-session-authorized?
-  "Fetches the org-SSO config for the given team and checks whether
-  the HTTP request has a valid session entry for it. Returns a map
-  with :authorized and :sso keys. Positive results are cached for 1h
-  by [team-id session-id]; negative results are never cached so that
-  a completed SSO login is reflected immediately."
-  [cfg team-id request]
-  (let [session    (session/get-session request)
-        session-id (:id session)]
-    (if (some? session-id)
-      (or (cache/get sso-auth-cache [team-id session-id])
-          (let [result (compute-sso-authorization cfg team-id session)]
-            (when (:authorized result)
-              (cache/get sso-auth-cache [team-id session-id] (constantly result)))
-            result))
-      (compute-sso-authorization cfg team-id session))))
 
 (defn add-nitrate-licence-to-profile
   "Enriches a profile map with subscription information from Nitrate.

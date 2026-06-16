@@ -226,6 +226,20 @@
     (-> (db/exec-one! cfg [sql (:profile-id session) (:id session)])
         (db/get-update-count))))
 
+(def ^:private sql:clear-org-sso-sessions
+  (str "UPDATE http_session_v2 "
+       "SET props = props #- ARRAY['~:sso', ?]::text[] "
+       "WHERE props IS NOT NULL "
+       "AND jsonb_exists(props -> '~:sso', ?)"))
+
+(defn clear-org-sso-sessions!
+  "Remove the SSO entry for organization-id from the props of every
+  session that currently holds it. The key is transit-encoded as the
+  string '~u<uuid>' under the '~:sso' path."
+  [pool organization-id]
+  (let [org-key (str "~u" organization-id)]
+    (db/exec! pool [sql:clear-org-sso-sessions org-key org-key])))
+
 (defn- renew-session?
   [{:keys [id modified-at] :as session}]
   (or (string? id)

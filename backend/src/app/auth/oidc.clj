@@ -456,7 +456,7 @@
            :grant-type (:grant_type params)
            :redirect-uri (:redirect_uri params))
 
-    (let [{:keys [status body]} (http/req cfg req)]
+    (let [{:keys [status body]} (http/req cfg req {:skip-ssrf-check? (:skip-ssrf-check? provider)})]
       (if (= status 200)
         (let [data (json/decode body)
               data {:token/access (get data :access_token)
@@ -511,7 +511,7 @@
                   :headers {"Authorization" (str (:token/type tdata) " " (:token/access tdata))}
                   :timeout 6000
                   :method :get}
-        response (http/req cfg params)]
+        response (http/req cfg params {:skip-ssrf-check? (:skip-ssrf-check? provider)})]
 
     (l/trc :hint "user info response"
            :status (:status response)
@@ -887,6 +887,7 @@
    ::http/client
    ::setup/props
    ::db/pool
+   [:app.nitrate/client {:optional true} [:maybe :map]]
    [::providers schema:providers]])
 
 (defmethod ig/assert-key ::routes
