@@ -1,5 +1,6 @@
 ## 1.5.0 (Unreleased)
 
+- **plugins-runtime**: Array-typed properties (e.g. `page.flows`, `shape.exports`, `shape.shadows`, layout `rows`/`columns`, ruler guides, path `commands`) now always return an array, returning an empty array instead of `null` when there are no items
 - **plugins-runtime**: Added `version` field that returns the current version
 - **plugins-runtime**: Added optional parameter `throwOnError` to `penpot.ui.sendMessage` (default false, backwards-compatible)
 - **plugin-types**: Added a flags subcontexts with the flag `naturalChildrenOrdering`
