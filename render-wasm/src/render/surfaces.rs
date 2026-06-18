@@ -11,6 +11,33 @@ use crate::math::Point;
 use base64::{engine::general_purpose, Engine as _};
 use std::collections::{HashMap, HashSet};
 
+/// Blit a sub-rect from a GPU surface into a canvas without materializing an
+/// `SkImage` snapshot. Used for pan overlays; tile-atlas composition still
+/// goes through `canvas.draw_atlas`.
+fn draw_surface_rect_into_canvas(
+    canvas: &skia::Canvas,
+    src_surface: &skia::Surface,
+    src_rect: skia::Rect,
+    dst_rect: skia::Rect,
+    sampling: skia::SamplingOptions,
+) {
+    if src_rect.is_empty() || dst_rect.is_empty() {
+        return;
+    }
+
+    let sx = dst_rect.width() / src_rect.width();
+    let sy = dst_rect.height() / src_rect.height();
+
+    canvas.save();
+    canvas.clip_rect(dst_rect, None, false);
+    canvas.translate((dst_rect.left, dst_rect.top));
+    canvas.scale((sx, sy));
+    canvas.translate((-src_rect.left, -src_rect.top));
+    let mut s = src_surface.clone();
+    s.draw(canvas, (0.0, 0.0), sampling, Some(&skia::Paint::default()));
+    canvas.restore();
+}
+
 const TEXTURES_CACHE_CAPACITY: usize = 1024;
 const TEXTURES_BATCH_DELETE: usize = 256;
 
@@ -1323,26 +1350,18 @@ impl Surfaces {
         let _ = self.atlas.clear_tile_in_atlas(gpu_state, tile);
     }
 
-    pub fn get_tile_image_from_tile_atlas(&mut self, tile: Tile) -> Option<skia::Image> {
+    pub fn draw_cached_tile_into_backbuffer(&mut self, tile: Tile, rect: &Rect) {
         let Some(tile_ref) = self.tiles.get(tile) else {
-            panic!("Tile not found {}:{}", tile.0, tile.1);
+            return;
         };
 
-        let rect = IRect::from_ltrb(
-            tile_ref.rect.left as i32,
-            tile_ref.rect.top as i32,
-            tile_ref.rect.right as i32,
-            tile_ref.rect.bottom as i32,
+        draw_surface_rect_into_canvas(
+            self.backbuffer.canvas(),
+            &self.tile_atlas,
+            tile_ref.rect,
+            *rect,
+            self.atlas_sampling_options,
         );
-        self.tile_atlas.image_snapshot_with_bounds(rect)
-    }
-
-    pub fn draw_cached_tile_into_backbuffer(&mut self, tile: Tile, rect: &Rect) {
-        if let Some(image) = self.get_tile_image_from_tile_atlas(tile) {
-            // let rect = tile.get_rect_with_offset(&offset);
-            let backbuffer_canvas = self.backbuffer.canvas();
-            backbuffer_canvas.draw_image_rect(&image, None, rect, &skia::Paint::default());
-        }
     }
 
     /// Draws the current tile directly to the backbuffer and cache surfaces without

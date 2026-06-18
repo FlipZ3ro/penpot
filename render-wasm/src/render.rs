@@ -1026,10 +1026,6 @@ impl RenderState {
             self.render_area,
         );
 
-        let rect = self.get_current_tile_bounds()?;
-        self.surfaces
-            .draw_cached_tile_into_backbuffer(current_tile, &rect);
-
         Ok(())
     }
 
@@ -2341,7 +2337,10 @@ impl RenderState {
         let frame_type =
             self.render_shape_tree_partial(base_object, tree, timestamp, allow_stop)?;
 
-        if !self.options.is_interactive_transform() {
+        // `draw_atlas` needs a snapshot of the tile atlas. Partial frames are not
+        // presented (only flushed), so defer composition to the final frame and
+        // avoid re-snapshotting up to 4096² on every rAF during async tile work.
+        if !self.options.is_interactive_transform() && matches!(frame_type, FrameType::Full) {
             self.surfaces.draw_tile_atlas_to_backbuffer(
                 &self.viewbox,
                 &self.tile_viewbox,
@@ -2383,6 +2382,13 @@ impl RenderState {
         timestamp: i32,
     ) -> Result<FrameType> {
         self.render_shape_tree_partial(base_object, tree, timestamp, false)?;
+        if !self.options.is_interactive_transform() {
+            self.surfaces.draw_tile_atlas_to_backbuffer(
+                &self.viewbox,
+                &self.tile_viewbox,
+                self.background_color,
+            );
+        }
         let saved_preview_mode = self.preview_mode;
         self.preview_mode = true;
         self.present_frame(tree);
