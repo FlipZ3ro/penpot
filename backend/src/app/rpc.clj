@@ -220,11 +220,7 @@
   [organization-id]
   (cache/invalidate-if! org-sso-auth-cache #(= (:organization-id %) organization-id)))
 
-(defn- coerce-uuid [v]
-  (cond (uuid? v) v
-        (string? v) (uuid/parse* v)))
-
-(defn- wrap-org-sso
+(defn- wrap-nitrate-sso
   "Enforce Nitrate organization SSO authentication for RPC handlers.
 
    Resolves the team context from request params using priority order:
@@ -242,20 +238,20 @@
    - Endpoint requires authentication (::auth true by default)
    - Endpoint is not marked with ::nitrate/org-sso false
 
-   Raises :org-sso-required error if user is not authorized in the org."
+   Raises :nitrate-sso-required error if user is not authorized in the org."
   [_ f mdata]
   (if (and (contains? cf/flags :nitrate)
            (::auth mdata true) ;; only for endpoints that needs auth
-           (::nitrate/org-sso mdata true))
+           (::nitrate/sso mdata true))
     (fn [cfg params]
       ;; Resolve team/project/file from explicit keys or from :id via metadata
       (let [id-type    (::id-type mdata)
-            id         (coerce-uuid (:id params))
-            team-id    (or (coerce-uuid (:team-id params))
+            id         (uuid/coerce (:id params))
+            team-id    (or (uuid/coerce (:team-id params))
                            (when (= id-type :team) id))
-            project-id (or (coerce-uuid (:project-id params))
+            project-id (or (uuid/coerce (:project-id params))
                            (when (= id-type :project) id))
-            file-id    (or (coerce-uuid (:file-id params))
+            file-id    (or (uuid/coerce (:file-id params))
                            (when (= id-type :file) id))]
         (if (or team-id project-id file-id)
           (let [cache-ref  (or team-id project-id file-id)
@@ -278,7 +274,7 @@
             (if (:authorized result)
               (f cfg params)
               (ex/raise :type :authentication
-                        :code :org-sso-required
+                        :code :nitrate-sso-required
                         :hint "organization SSO authentication required")))
           (f cfg params))))
     f))
@@ -296,7 +292,7 @@
     (wrap-spec-conform cfg $ mdata)
     (wrap-params-validation cfg $ mdata)
     (wrap-authentication cfg $ mdata)
-    (wrap-org-sso cfg $ mdata)))
+    (wrap-nitrate-sso cfg $ mdata)))
 
 (defn- wrap-management
   [cfg f mdata]
@@ -309,7 +305,7 @@
     (wrap-spec-conform cfg $ mdata)
     (wrap-params-validation cfg $ mdata)
     (wrap-authentication cfg $ mdata)
-    (wrap-org-sso cfg $ mdata)))
+    (wrap-nitrate-sso cfg $ mdata)))
 
 
 

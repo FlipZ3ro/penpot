@@ -887,7 +887,7 @@
    ::http/client
    ::setup/props
    ::db/pool
-   [:app.nitrate/client {:optional true} [:maybe :map]]
+   [:app.nitrate/client [:maybe :map]]
    [::providers schema:providers]])
 
 (defmethod ig/assert-key ::routes

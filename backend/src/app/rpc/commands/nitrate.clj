@@ -620,12 +620,12 @@
      :allows-anybody false}))
 
 
-(def ^:private schema:auth-sso
+(def ^:private schema:check-nitrate-sso
   [:map {:title "AuthSsoParams"}
    [:team-id ::sm/uuid]
    [:url ::sm/uri]])
 
-(sv/defmethod ::auth-sso
+(sv/defmethod ::check-nitrate-sso
   "Check if a user needs to login into the organization SSO.
   Returns {:authorized true} when SSO is not active for the team.
   Returns {:authorized false :redirect-uri <url>} when SSO is active;
@@ -633,8 +633,8 @@
   re-authentication transparently if the user already has an active SSO session."
   {::rpc/auth true
    ::doc/added "2.19"
-   ::sm/params schema:auth-sso
-   ::nitrate/org-sso false}
+   ::sm/params schema:check-nitrate-sso
+   ::nitrate/sso false}
   [cfg {:keys [team-id url] :as params}]
   (let [request                   (rph/get-request params)
         {:keys [authorized sso]}  (nitrate/sso-session-authorized? cfg team-id request)]

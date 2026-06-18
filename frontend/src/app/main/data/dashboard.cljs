@@ -757,9 +757,9 @@
            (when fetch? ;; If the user belonged to the org
              (rx/of (dtm/fetch-teams)))))))))
 
-(defn- handle-organization-change-sso
+(defn- handle-nitrate-change-sso
   [{:keys [organization-id]}]
-  (ptk/reify ::handle-organization-change-sso
+  (ptk/reify ::handle-nitrate-change-sso
     ptk/WatchEvent
     (watch [_ state _]
       (when (contains? cf/flags :nitrate)
@@ -768,7 +768,7 @@
               org-id  (dm/get-in team [:organization :id])]
           (when (= organization-id org-id)
             (let [url (rt/get-current-href)]
-              (->> (rp/cmd! :auth-sso {:team-id team-id :url url})
+              (->> (rp/cmd! :check-nitrate-sso {:team-id team-id :url url})
                    (rx/mapcat (fn [{:keys [authorized redirect-uri]}]
                                 (if authorized
                                   (rx/empty)
@@ -785,7 +785,7 @@
     :team-org-change         (handle-change-team-org msg)
     :user-org-change         (handle-user-org-change msg)
     :organization-deleted    (handle-organization-deleted msg)
-    :organization-change-sso (handle-organization-change-sso msg)
+    :organization-change-sso (handle-nitrate-change-sso msg)
     nil))
 
 

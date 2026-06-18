@@ -100,7 +100,7 @@
 (defn- check-sso-and-navigate
   "Authorization filter for dashboard and workspace routes.
   Checks if the team being navigated to has an organization with SSO
-  active. If so, calls :auth-sso and either proceeds with navigation
+  active. If so, calls :check-nitrate-sso and either proceeds with navigation
   or redirects to the SSO provider URL."
   [match send-event-info? url]
   (let [route-name     (name (get-in match [:data :name]))
@@ -112,7 +112,7 @@
                              (get-in match [:params :path :team-id])))
         team-id        (some-> team-id-str uuid/parse*)]
     (if (some? team-id)
-      (->> (rp/cmd! :auth-sso {:team-id team-id :url url})
+      (->> (rp/cmd! :check-nitrate-sso {:team-id team-id :url url})
            (rx/subs!
             (fn [{:keys [authorized redirect-uri]}]
               (if authorized
